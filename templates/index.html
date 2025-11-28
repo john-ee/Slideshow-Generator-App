@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slideshow Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 180px);
+        }
+        
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .folder-list {
+            list-style: none;
+        }
+        
+        .folder-item {
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        
+        .folder-item:hover {
+            background: #ecf0f1;
+        }
+        
+        .folder-item.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .breadcrumb {
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .breadcrumb a {
+            color: #3498db;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: 20px;
+        }
+        
+        .media-item {
+            position: relative;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #f8f9fa;
+            min-height: 240px;
+        }
+        
+        .media-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .media-item.selected {
+            border-color: #3498db;
+        }
+        
+        .media-item img, .media-item video {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            background: #ecf0f1;
+        }
+        
+        .media-item img {
+            min-height: 200px;
+        }
+        
+        .media-item .name {
+            padding: 8px;
+            font-size: 12px;
+            text-align: center;
+            background: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .media-item .order-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .selection-summary {
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .pagination button {
+            padding: 8px 15px;
+            min-width: 80px;
+        }
+        
+        .pagination span {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 30px;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Slideshow Generator</h1>
+        
+        <div class="main-grid">
+            <div class="sidebar">
+                <h2>📁 Folders</h2>
+                <div class="breadcrumb" id="breadcrumb"></div>
+                <ul class="folder-list" id="folderList"></ul>
+            </div>
+            
+            <div class="main-content">
+                <div class="controls">
+                    <div class="input-group">
+                        <label for="youtubeUrl">🎵 YouTube Music URL (optional)</label>
+                        <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+                    </div>
+                    <div class="input-group" style="max-width: 150px;">
+                        <label for="duration">⏱️ Duration/Image (s)</label>
+                        <input type="number" id="duration" value="3" min="1" max="30">
+                    </div>
+                    <div class="input-group" style="max-width: 200px;">
+                        <label for="resolution">📐 Resolution</label>
+                        <select id="resolution">
+                            <option value="1920:1080">1920x1080 (Full HD)</option>
+                            <option value="1280:720" selected>1280x720 (HD)</option>
+                            <option value="3840:2160">3840x2160 (4K)</option>
+                            <option value="2560:1440">2560x1440 (2K)</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="max-width: 150px;">
+                        <label for="fadeDuration">🌅 Fade Duration (s)</label>
+                        <input type="number" id="fadeDuration" value="2" min="0" max="10" step="0.5">
+                    </div>
+                    <div class="input-group" style="max-width: 150px;">
+                        <label for="musicVolume">🔊 Music Volume</label>
+                        <input type="number" id="musicVolume" value="0.3" min="0" max="1" step="0.1">
+                    </div>
+                    <div class="input-group" style="max-width: 150px;">
+                        <label for="threads">⚙️ Threads</label>
+                        <input type="number" id="threads" value="2" min="1" max="16">
+                    </div>
+                </div>
+                
+                <div class="selection-summary">
+                    <div>
+                        <strong id="selectionCount">0 items selected</strong>
+                    </div>
+                    <div>
+                        <button onclick="window.location.href='/jobs'" style="background: #95a5a6;">View Jobs</button>
+                        <button onclick="clearSelection()">Clear Selection</button>
+                        <button onclick="generateSlideshow()" id="generateBtn">Generate Slideshow</button>
+                    </div>
+                </div>
+                
+                <div class="media-grid" id="mediaGrid"></div>
+                
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button onclick="loadPreviousPage()" id="prevBtn">← Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button onclick="loadNextPage()" id="nextBtn">Next →</button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p id="loadingMessage">Starting slideshow generation...</p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar">0%</div>
+                    </div>
+                </div>
+                
+                <div class="status" id="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPath = '';
+        let selectedFiles = [];
+        let mediaFiles = [];
+        let statusCheckInterval = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let perPage = 50;
+
+        async function loadFolders(path = '') {
+            try {
+                const response = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+                
+                currentPath = data.current_path;
+                
+                updateBreadcrumb();
+                
+                const folderList = document.getElementById('folderList');
+                folderList.innerHTML = '';
+                
+                if (currentPath) {
+                    const li = document.createElement('li');
+                    li.className = 'folder-item';
+                    li.textContent = '📁 ..';
+                    li.onclick = () => {
+                        const parentPath = currentPath.split('/').slice(0, -1).join('/');
+                        loadFolders(parentPath);
+                    };
+                    folderList.appendChild(li);
+                }
+                
+                data.items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'folder-item';
+                    li.textContent = `📁 ${item.name}`;
+                    li.onclick = () => loadFolders(item.path);
+                    folderList.appendChild(li);
+                });
+                
+                currentPage = 1;
+                loadMedia(currentPath);
+                
+            } catch (error) {
+                showStatus('Error loading folders: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMedia(path) {
+            try {
+                const response = await fetch(`/api/list-media?path=${encodeURIComponent(path)}&page=${currentPage}&per_page=${perPage}`);
+                const data = await response.json();
+                
+                mediaFiles = data.media;
+                totalPages = data.total_pages;
+                
+                updatePagination(data);
+                renderMediaGrid();
+                
+            } catch (error) {
+                showStatus('Error loading media: ' + error.message, 'error');
+            }
+        }
+
+        function updatePagination(data) {
+            const pagination = document.getElementById('pagination');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            if (data.total_pages > 1) {
+                pagination.style.display = 'flex';
+                pageInfo.textContent = `Page ${data.page} of ${data.total_pages} (${data.total} items)`;
+                prevBtn.disabled = data.page <= 1;
+                nextBtn.disabled = data.page >= data.total_pages;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        function loadPreviousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadMedia(currentPath);
+            }
+        }
+
+        function loadNextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadMedia(currentPath);
+            }
+        }
+
+        function renderMediaGrid() {
+            const grid = document.getElementById('mediaGrid');
+            grid.innerHTML = '';
+            
+            mediaFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'media-item';
+                div.onclick = () => toggleSelection(file.path);
+                
+                const selectedIndex = selectedFiles.indexOf(file.path);
+                if (selectedIndex !== -1) {
+                    div.classList.add('selected');
+                }
+                
+                let mediaElement;
+                if (file.type === 'video') {
+                    mediaElement = document.createElement('video');
+                    mediaElement.src = `/api/media/${file.path}`;
+                    mediaElement.muted = true;
+                    mediaElement.loading = 'lazy';
+                    mediaElement.preload = 'metadata';
+                } else {
+                    mediaElement = document.createElement('img');
+                    mediaElement.src = `/api/thumbnail/${file.path}`;
+                    mediaElement.alt = file.name;
+                    mediaElement.loading = 'lazy';
+                }
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'name';
+                nameDiv.textContent = file.name;
+                
+                div.appendChild(mediaElement);
+                div.appendChild(nameDiv);
+                
+                if (selectedIndex !== -1) {
+                    const badge = document.createElement('div');
+                    badge.className = 'order-badge';
+                    badge.textContent = selectedIndex + 1;
+                    div.appendChild(badge);
+                }
+                
+                grid.appendChild(div);
+            });
+            
+            updateSelectionCount();
+        }
+
+        function toggleSelection(filepath) {
+            const index = selectedFiles.indexOf(filepath);
+            if (index > -1) {
+                selectedFiles.splice(index, 1);
+            } else {
+                selectedFiles.push(filepath);
+            }
+            renderMediaGrid();
+        }
+
+        function clearSelection() {
+            selectedFiles = [];
+            renderMediaGrid();
+        }
+
+        function updateSelectionCount() {
+            document.getElementById('selectionCount').textContent = 
+                `${selectedFiles.length} item${selectedFiles.length !== 1 ? 's' : ''} selected`;
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (!currentPath) {
+                breadcrumb.innerHTML = '<a onclick="loadFolders(\'\')">📁 Root</a>';
+                return;
+            }
+            
+            const parts = currentPath.split('/');
+            let html = '<a onclick="loadFolders(\'\')">📁 Root</a>';
+            let accPath = '';
+            
+            parts.forEach((part, index) => {
+                accPath += (index > 0 ? '/' : '') + part;
+                const path = accPath;
+                html += ` / <a onclick="loadFolders('${path}')">${part}</a>`;
+            });
+            
+            breadcrumb.innerHTML = html;
+        }
+
+        async function generateSlideshow() {
+            if (selectedFiles.length === 0) {
+                showStatus('Please select at least one image or video', 'error');
+                return;
+            }
+            
+            const youtubeUrl = document.getElementById('youtubeUrl').value;
+            const duration = parseInt(document.getElementById('duration').value);
+            const resolution = document.getElementById('resolution').value;
+            const fadeDuration = parseFloat(document.getElementById('fadeDuration').value);
+            const musicVolume = parseFloat(document.getElementById('musicVolume').value);
+            const threads = parseInt(document.getElementById('threads').value);
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('generateBtn').disabled = true;
+            updateProgress(0, 'Starting slideshow generation...');
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        files: selectedFiles,
+                        youtube_url: youtubeUrl,
+                        duration: duration,
+                        resolution: resolution,
+                        fade_duration: fadeDuration,
+                        music_volume: musicVolume,
+                        threads: threads
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.job_id) {
+                    pollJobStatus(data.job_id);
+                } else {
+                    showStatus('Failed to start generation: ' + (data.error || 'Unknown error'), 'error');
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('generateBtn').disabled = false;
+                }
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('generateBtn').disabled = false;
+            }
+        }
+
+        async function pollJobStatus(jobId) {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            
+            statusCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/status/${jobId}`);
+                    const status = await response.json();
+                    
+                    updateProgress(status.progress, status.message);
+                    
+                    if (status.status === 'completed') {
+                        clearInterval(statusCheckInterval);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('generateBtn').disabled = false;
+                        showStatus(
+                            `${status.message} <a href="/api/download/${status.output_file}" style="color: inherit; text-decoration: underline;">Download slideshow</a>`,
+                            'success'
+                        );
+                    } else if (status.status === 'failed') {
+                        clearInterval(statusCheckInterval);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('generateBtn').disabled = false;
+                        showStatus('Generation failed: ' + (status.error || status.message), 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking status:', error);
+                }
+            }, 2000);
+        }
+
+        function updateProgress(percent, message) {
+            const progressBar = document.getElementById('progressBar');
+            const loadingMessage = document.getElementById('loadingMessage');
+            
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+            loadingMessage.textContent = message;
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        loadFolders();
+    </script>
+</body>
+</html>

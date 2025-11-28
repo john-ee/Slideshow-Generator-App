@@ -1,0 +1,14 @@
+services:
+  slideshow-generator:
+    build: .
+    container_name: slideshow-generator
+    ports:
+      - "5000:5000"
+    volumes:
+      - /path/to/your/photos:/media:ro
+      - ./outputs:/app/outputs
+      - ./thumbnails:/app/thumbnails
+      - ./status:/app/status
+    environment:
+      - MEDIA_ROOT=/media
+    restart: unless-stopped
