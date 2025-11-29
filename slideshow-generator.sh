@@ -1,3 +1,4 @@
+
 #!/bin/bash
 THREADS=2
 FADE_DUR=2
@@ -42,10 +43,13 @@ if [[ -n "$YOUTUBE_URL" ]]; then
  echo "MUSIC CREDITS : https://youtu.be/$YTID" > overlay.txt
 fi
 
+# Pre cleanup
+rm -rf "$TMP_DIR" "$TMP_LIST" combined.mp4 "$SORTED_DIR"
+
 mkdir -p "$SORTED_DIR" "$TMP_DIR"
 > "$TMP_LIST"
 
-exiftool '-FileName<DateTimeOriginal' -d "%Y%m%d_%H%M%S%%-c.%%e" -o "$SORTED_DIR" "$IMG_DIR" || cp "$IMG_DIR"/* "$SORTED_DIR"
+cp "$IMG_DIR"/* "$SORTED_DIR"
 
 echo "Processing media..."
 for file in $(find "$SORTED_DIR" -type f \( -iname "*.jpg" -o -iname "*.mp4" \) | sort); do
@@ -56,12 +60,12 @@ for file in $(find "$SORTED_DIR" -type f \( -iname "*.jpg" -o -iname "*.mp4" \) 
     ffmpeg -threads $THREADS -y \
       -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
       -loop 1 -t $DURATION_PER_IMAGE -i "$file" \
-      -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black" \
-      -r 30 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$seg" || exit 1
+      -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
+      -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
   else
     ffmpeg -threads $THREADS -y -i "$file" \
-      -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black" \
-      -r 30 -c:v libx264 -pix_fmt yuv420p -c:a aac -ar 44100 "$seg" || exit 1
+      -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
+      -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -ar 44100 "$seg" || exit 1
   fi
 
   echo "file '$seg'" >> "$TMP_LIST"
@@ -76,9 +80,21 @@ echo "Creating combined video..."
 INPUTS=$(awk -F"'" '{print "-i " $2}' "$TMP_LIST")
 SEG_COUNT=$(wc -l < "$TMP_LIST")
 
+# Build filter chain that normalizes SAR for each input
+FILTER_CHAIN=""
+for i in $(seq 0 $((SEG_COUNT - 1))); do
+  FILTER_CHAIN="${FILTER_CHAIN}[$i:v]setsar=1[v$i];[$i:a]anull[a$i];"
+done
+
+# Build concat inputs
+CONCAT_INPUTS=""
+for i in $(seq 0 $((SEG_COUNT - 1))); do
+  CONCAT_INPUTS="${CONCAT_INPUTS}[v$i][a$i]"
+done
+
 ffmpeg -threads $THREADS -y $INPUTS \
--filter_complex "concat=n=$SEG_COUNT:v=1:a=1" \
--c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac combined.mp4 || exit 1
+-filter_complex "${FILTER_CHAIN}${CONCAT_INPUTS}concat=n=$SEG_COUNT:v=1:a=1[outv][outa]" \
+-map "[outv]" -map "[outa]" -c:v libx264 -pix_fmt yuv420p -r 30 -c:a aac combined.mp4 || exit 1
 
 DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 combined.mp4)
 VIDEO_FADE_OUT_START=$(echo "$DURATION - $FADE_DUR" | bc)

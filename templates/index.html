@@ -34,6 +34,7 @@
             grid-template-columns: 300px 1fr;
             gap: 20px;
             height: calc(100vh - 180px);
+            position: relative;
         }
         
         .sidebar {
@@ -42,6 +43,37 @@
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+        }
+        
+        .toggle-sidebar {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 10px;
+            z-index: 20;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .toggle-sidebar:hover {
+            background: #2980b9;
         }
         
         .sidebar h2 {
@@ -309,11 +341,84 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 280px;
+                transform: translateX(-100%);
+                z-index: 100;
+                border-radius: 0 8px 8px 0;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .toggle-sidebar {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 99;
+            }
+            
+            .overlay.show {
+                display: block;
+            }
+            
+            .controls {
+                gap: 8px;
+            }
+            
+            .input-group {
+                min-width: 150px;
+            }
+            
+            .media-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 10px;
+            }
+            
+            .selection-summary {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            
+            .selection-summary > div {
+                width: 100%;
+            }
+            
+            .selection-summary button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📸 Slideshow Generator</h1>
+        <button class="toggle-sidebar" id="toggleSidebar" onclick="toggleSidebar()">☰</button>
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
         
         <div class="main-grid">
             <div class="sidebar">
@@ -511,7 +616,15 @@
                 
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'name';
-                nameDiv.textContent = file.name;
+                
+                // Show selection number in filename if selected (3-digit format)
+                if (selectedIndex !== -1) {
+                    const ext = file.name.substring(file.name.lastIndexOf('.'));
+                    const paddedNumber = String(selectedIndex + 1).padStart(3, '0');
+                    nameDiv.textContent = `${paddedNumber}${ext}`;
+                } else {
+                    nameDiv.textContent = file.name;
+                }
                 
                 div.appendChild(mediaElement);
                 div.appendChild(nameDiv);
@@ -669,6 +782,30 @@
             status.className = 'status ' + type;
             status.style.display = 'block';
         }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+
+        // Close sidebar when clicking on a folder (mobile only)
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth <= 768) {
+                const folderList = document.getElementById('folderList');
+                folderList.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('folder-item')) {
+                        setTimeout(() => {
+                            if (document.querySelector('.sidebar').classList.contains('show')) {
+                                toggleSidebar();
+                            }
+                        }, 300);
+                    }
+                });
+            }
+        });
 
         loadFolders();
     </script>
