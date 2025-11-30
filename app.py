@@ -6,6 +6,7 @@ import shutil
 import threading
 from datetime import datetime
 from PIL import Image
+import cv2
 
 app = Flask(__name__)
 
@@ -104,11 +105,20 @@ def list_media():
                 ext = os.path.splitext(item)[1].lower()
                 if ext in supported_extensions:
                     rel_path = os.path.relpath(item_path, MEDIA_ROOT)
-                    all_files.append({
+                    is_video = ext in {'.mp4', '.mov', '.avi', '.mkv'}
+                    
+                    file_info = {
                         'name': item,
                         'path': rel_path,
-                        'type': 'video' if ext in {'.mp4', '.mov', '.avi', '.mkv'} else 'image'
-                    })
+                        'type': 'video' if is_video else 'image'
+                    }
+                    
+                    # Add duration for videos
+                    if is_video:
+                        duration = get_video_duration(item_path)
+                        file_info['duration'] = format_duration(duration)
+                    
+                    all_files.append(file_info)
         
         total = len(all_files)
         start = (page - 1) * per_page
@@ -342,6 +352,37 @@ def download(filename):
         return send_file(file_path, as_attachment=True)
     except Exception as e:
         return str(e), 500
+
+
+def get_video_duration(video_path):
+    """Get duration of video file in seconds"""
+    try:
+        video = cv2.VideoCapture(video_path)
+        fps = video.get(cv2.CAP_PROP_FPS)
+        frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+        video.release()
+        
+        if fps > 0:
+            duration = frame_count / fps
+            return duration
+        return None
+    except Exception as e:
+        print(f"Error getting video duration: {e}")
+        return None
+
+def format_duration(seconds):
+    """Format seconds to MM:SS or HH:MM:SS"""
+    if seconds is None:
+        return None
+    
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    else:
+        return f"{minutes}:{secs:02d}"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
