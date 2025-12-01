@@ -189,7 +189,7 @@ def generate_slideshow():
         selected_files = data.get('files', [])
         youtube_url = data.get('youtube_url', '')
         duration = data.get('duration', 3)
-        resolution = data.get('resolution', '1280:720')
+        orientation = data.get('orientation', 'landscape')
         fade_duration = data.get('fade_duration', 2)
         music_volume = data.get('music_volume', 0.3)
         threads = data.get('threads', 2)
@@ -213,7 +213,7 @@ def generate_slideshow():
         
         thread = threading.Thread(
             target=process_slideshow,
-            args=(job_id, selected_files, youtube_url, duration, resolution, 
+            args=(job_id, selected_files, youtube_url, duration, orientation, 
                   fade_duration, music_volume, threads, timestamp)
         )
         thread.daemon = True
@@ -228,7 +228,7 @@ def generate_slideshow():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def process_slideshow(job_id, selected_files, youtube_url, duration, resolution,
+def process_slideshow(job_id, selected_files, youtube_url, duration, orientation,
                       fade_duration, music_volume, threads, timestamp):
     job_dir = None
     try:
@@ -265,7 +265,7 @@ def process_slideshow(job_id, selected_files, youtube_url, duration, resolution,
             '-d', media_dir,
             '-f', output_file,
             '-t', str(duration),
-            '-r', resolution
+            '-o', orientation
         ]
         
         if youtube_url:

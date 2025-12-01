@@ -438,12 +438,11 @@
                         <input type="number" id="duration" value="3" min="1" max="30">
                     </div>
                     <div class="input-group" style="max-width: 200px;">
-                        <label for="resolution">📐 Resolution</label>
-                        <select id="resolution">
-                            <option value="1920:1080">1920x1080 (Full HD)</option>
-                            <option value="1280:720" selected>1280x720 (HD)</option>
-                            <option value="3840:2160">3840x2160 (4K)</option>
-                            <option value="2560:1440">2560x1440 (2K)</option>
+                        <label for="orientation">📐 orientation</label>
+                        <select id="orientation">
+                            <option value="landscape" selected>landscape</option>
+                            <option value="portrait">portrait</option>
+                            <option value="square">square</option>
                         </select>
                     </div>
                     <div class="input-group" style="max-width: 150px;">
@@ -690,7 +689,7 @@
             
             const youtubeUrl = document.getElementById('youtubeUrl').value;
             const duration = parseInt(document.getElementById('duration').value);
-            const resolution = document.getElementById('resolution').value;
+            const orientation = document.getElementById('orientation').value;
             const fadeDuration = parseFloat(document.getElementById('fadeDuration').value);
             const musicVolume = parseFloat(document.getElementById('musicVolume').value);
             const threads = parseInt(document.getElementById('threads').value);
@@ -710,7 +709,7 @@
                         files: selectedFiles,
                         youtube_url: youtubeUrl,
                         duration: duration,
-                        resolution: resolution,
+                        orientation: orientation,
                         fade_duration: fadeDuration,
                         music_volume: musicVolume,
                         threads: threads

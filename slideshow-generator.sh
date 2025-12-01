@@ -1,4 +1,3 @@
-
 #!/bin/bash
 THREADS=2
 FADE_DUR=2
@@ -10,22 +9,31 @@ MUSIC_VOL=0.2
 IMG_DIR="./media"
 FINAL_OUTPUT="final_slideshow.mp4"
 MUSIC_FILE="music.mp3"
-RESOLUTION="1280:720"
 YOUTUBE_URL=""
 DURATION_PER_IMAGE=3
+ORIENTATION="landscape"
 
-while getopts d:f:m:r:y:t:v: flag; do
+while getopts d:f:m:y:t:v:o: flag; do
  case "${flag}" in
  d) IMG_DIR="${OPTARG}" ;;
  f) FINAL_OUTPUT="${OPTARG}" ;;
  m) MUSIC_FILE="${OPTARG}" ;;
- r) RESOLUTION="${OPTARG}" ;;
  y) YOUTUBE_URL="${OPTARG}" ;;
  t) DURATION_PER_IMAGE="${OPTARG}" ;;
  v) MUSIC_VOL="${OPTARG}" ;;
- *) echo "Usage: $0 [-d media_dir] [-f final_output] [-m music_file] [-r resolution] [-y youtube_url] [-t image_duration] -v [music volume between 0 and 1]" && exit 1 ;;
+ o) ORIENTATION="${OPTARG}" ;;
+ *) echo "Usage: $0 [-d media_dir] [-f final_output] [-m music_file] [-y youtube_url] [-t image_duration] [-v music_volume] [-o orientation (landscape|portrait|square)]" && exit 1 ;;
  esac
 done
+
+# Set resolution based on orientation
+if [[ "$ORIENTATION" == "portrait" ]]; then
+  RESOLUTION="720:1280"
+elif [[ "$ORIENTATION" == "square" ]]; then
+  RESOLUTION="1080:1080"
+else
+  RESOLUTION="1280:720"
+fi
 
 for cmd in ffmpeg ffprobe exiftool bc; do
  command -v $cmd >/dev/null 2>&1 || { echo "❌ $cmd is not installed"; exit 1; }
