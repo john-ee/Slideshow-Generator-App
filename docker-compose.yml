@@ -11,4 +11,5 @@ services:
       - ./status:/app/status
     environment:
       - MEDIA_ROOT=/media
+      - DISCORD_WEBHOOK_URL=<url>
     restart: unless-stopped
