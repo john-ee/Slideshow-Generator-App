@@ -6,6 +6,7 @@ import shutil
 import threading
 from datetime import datetime
 from PIL import Image
+import requests
 
 app = Flask(__name__)
 
@@ -23,6 +24,21 @@ os.makedirs(STATUS_DIR, exist_ok=True)
 job_statuses = {}
 THUMBNAIL_SIZE = (400, 300)
 THUMBNAIL_QUALITY = 85
+
+DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
+
+# Send a notification via Discord hook
+def notify_discord(job_id, status, message, output_file=None):
+    if not DISCORD_WEBHOOK_URL:
+        return
+    content = f"**Slideshow Job {job_id}**\nStatus: {status}\nMessage: {message}"
+    if output_file:
+        content += f"\nOutput: {output_file}"
+    try:
+        requests.post(DISCORD_WEBHOOK_URL, json={"content": content})
+    except Exception as e:
+        print(f"Discord notification failed: {e}")
+
 
 # Save job statuses to disk for persistence
 def save_job_status(job_id):
@@ -309,6 +325,7 @@ def process_slideshow(job_id, selected_files, youtube_url, youtube_start, youtub
             job_statuses[job_id]['error'] = result.stderr
             job_statuses[job_id]['message'] = 'Generation failed'
             save_job_status(job_id)
+            notify_discord(job_id, 'failed', 'Generation failed')
             return
         
         job_statuses[job_id]['progress'] = 100
@@ -317,6 +334,7 @@ def process_slideshow(job_id, selected_files, youtube_url, youtube_start, youtub
         job_statuses[job_id]['output_file'] = f'slideshow_{timestamp}.mp4'
         job_statuses[job_id]['completed_at'] = datetime.now().strftime('%Y%m%d_%H%M%S')
         save_job_status(job_id)
+        notify_discord(job_id, 'completed', 'Slideshow generated successfully!', job_statuses[job_id]['output_file'])
         
     except Exception as e:
         job_statuses[job_id]['status'] = 'failed'
