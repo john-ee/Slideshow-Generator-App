@@ -49,5 +49,9 @@ docker-compose up -d
 http://localhost:5000
 ```
 
+## Potential Issues
+* No cleanup job is configured in the Docker container
+** I set a cron job on my NAS to clean it up
+
 ## Screenshot
 TODO
