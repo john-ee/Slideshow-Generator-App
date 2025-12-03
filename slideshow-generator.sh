@@ -37,7 +37,7 @@ else
   RESOLUTION="1280:720"
 fi
 
-for cmd in ffmpeg ffprobe exiftool bc; do
+for cmd in ffmpeg ffprobe bc; do
  command -v $cmd >/dev/null 2>&1 || { echo "❌ $cmd is not installed"; exit 1; }
 done
 if [[ -n "$YOUTUBE_URL" ]]; then
