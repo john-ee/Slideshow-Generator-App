@@ -188,6 +188,8 @@ def generate_slideshow():
         data = request.json
         selected_files = data.get('files', [])
         youtube_url = data.get('youtube_url', '')
+        youtube_start = data.get('youtube_start', '')
+        youtube_end = data.get('youtube_end', '')
         duration = data.get('duration', 3)
         orientation = data.get('orientation', 'landscape')
         fade_duration = data.get('fade_duration', 2)
@@ -213,8 +215,8 @@ def generate_slideshow():
         
         thread = threading.Thread(
             target=process_slideshow,
-            args=(job_id, selected_files, youtube_url, duration, orientation, 
-                  fade_duration, music_volume, threads, timestamp)
+            args=(job_id, selected_files, youtube_url, youtube_start, youtube_end,
+                  duration, orientation, fade_duration, music_volume, threads, timestamp)
         )
         thread.daemon = True
         thread.start()
@@ -228,8 +230,8 @@ def generate_slideshow():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def process_slideshow(job_id, selected_files, youtube_url, duration, orientation,
-                      fade_duration, music_volume, threads, timestamp):
+def process_slideshow(job_id, selected_files, youtube_url, youtube_start, youtube_end,
+                      duration, orientation, fade_duration, music_volume, threads, timestamp):
     job_dir = None
     try:
         job_statuses[job_id]['status'] = 'processing'
@@ -270,7 +272,19 @@ def process_slideshow(job_id, selected_files, youtube_url, duration, orientation
         
         if youtube_url:
             cmd.extend(['-y', youtube_url])
-            job_statuses[job_id]['message'] = 'Downloading audio from YouTube...'
+            
+            # Add timestamp section if provided
+            if youtube_start and youtube_end:
+                youtube_section = f"{youtube_start}-{youtube_end}"
+                cmd.extend(['-s', youtube_section])
+                job_statuses[job_id]['message'] = f'Downloading audio from YouTube ({youtube_start} to {youtube_end})...'
+            elif youtube_start:
+                youtube_section = f"{youtube_start}-inf"
+                cmd.extend(['-s', youtube_section])
+                job_statuses[job_id]['message'] = f'Downloading audio from YouTube (from {youtube_start})...'
+            else:
+                job_statuses[job_id]['message'] = 'Downloading audio from YouTube...'
+            
             save_job_status(job_id)
         
         env = os.environ.copy()

@@ -10,19 +10,21 @@ IMG_DIR="./media"
 FINAL_OUTPUT="final_slideshow.mp4"
 MUSIC_FILE="music.mp3"
 YOUTUBE_URL=""
+YOUTUBE_SECTION=""
 DURATION_PER_IMAGE=3
 ORIENTATION="landscape"
 
-while getopts d:f:m:y:t:v:o: flag; do
+while getopts d:f:m:y:s:t:v:o: flag; do
  case "${flag}" in
  d) IMG_DIR="${OPTARG}" ;;
  f) FINAL_OUTPUT="${OPTARG}" ;;
  m) MUSIC_FILE="${OPTARG}" ;;
  y) YOUTUBE_URL="${OPTARG}" ;;
+ s) YOUTUBE_SECTION="${OPTARG}" ;;
  t) DURATION_PER_IMAGE="${OPTARG}" ;;
  v) MUSIC_VOL="${OPTARG}" ;;
  o) ORIENTATION="${OPTARG}" ;;
- *) echo "Usage: $0 [-d media_dir] [-f final_output] [-m music_file] [-y youtube_url] [-t image_duration] [-v music_volume] [-o orientation (landscape|portrait|square)]" && exit 1 ;;
+ *) echo "Usage: $0 [-d media_dir] [-f final_output] [-m music_file] [-y youtube_url] [-s youtube_section] [-t image_duration] [-v music_volume] [-o orientation (landscape|portrait|square)]" && exit 1 ;;
  esac
 done
 
@@ -46,7 +48,17 @@ fi
 # Download music and extract metadata if YouTube URL provided
 if [[ -n "$YOUTUBE_URL" ]]; then
  echo "Downloading audio from YouTube..."
- yt-dlp -x --audio-format mp3 -o "$MUSIC_FILE" "$YOUTUBE_URL" || exit 1
+ 
+ # Build yt-dlp command with optional section download
+ YTDLP_CMD="yt-dlp -x --audio-format mp3"
+ if [[ -n "$YOUTUBE_SECTION" ]]; then
+   echo "Using section: $YOUTUBE_SECTION"
+   YTDLP_CMD="$YTDLP_CMD --download-sections \"*$YOUTUBE_SECTION\""
+ fi
+ YTDLP_CMD="$YTDLP_CMD -o \"$MUSIC_FILE\" \"$YOUTUBE_URL\""
+ 
+ eval $YTDLP_CMD || exit 1
+ 
  YTID=$(yt-dlp --get-id "$YOUTUBE_URL")
  echo "MUSIC CREDITS : https://youtu.be/$YTID" > overlay.txt
 fi

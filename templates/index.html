@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slideshow Generator</title>
+    <title>Slideshow Generator Test</title>
     <style>
         * {
             margin: 0;
@@ -156,6 +156,56 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+        }
+        
+        .input-group small {
+            display: block;
+            margin-top: 3px;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        
+        .timestamp-section {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .timestamp-section.show {
+            display: block;
+        }
+        
+        .timestamp-section h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .timestamp-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .time-input-wrapper {
+            flex: 1;
+        }
+        
+        .section-preview {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #d1ecf1;
+            color: #0c5460;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        
+        .section-preview.show {
+            display: block;
         }
         
         button {
@@ -429,10 +479,28 @@
             
             <div class="main-content">
                 <div class="controls">
-                    <div class="input-group">
+                    <div class="input-group" style="flex: 0 0 100%;">
                         <label for="youtubeUrl">🎵 YouTube Music URL (optional)</label>
-                        <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+                        <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." oninput="toggleTimestampFields()">
+                        
+                        <div class="timestamp-section" id="timestampSection">
+                            <h4>⏱️ Cut Specific Section (optional)</h4>
+                            <div class="timestamp-row">
+                                <div class="time-input-wrapper">
+                                    <input type="text" id="youtubeStart" placeholder="Start time (e.g., 01:30)" oninput="updateSectionPreview()">
+                                    <small>Format: MM:SS or HH:MM:SS</small>
+                                </div>
+                                <div class="time-input-wrapper">
+                                    <input type="text" id="youtubeEnd" placeholder="End time (e.g., 02:45)" oninput="updateSectionPreview()">
+                                    <small>Leave empty or type 'inf' for end of video</small>
+                                </div>
+                            </div>
+                            <div class="section-preview" id="sectionPreview">
+                                <strong>Will download:</strong> <span id="previewText"></span>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="input-group" style="max-width: 150px;">
                         <label for="duration">⏱️ Duration/Image (s)</label>
                         <input type="number" id="duration" value="3" min="1" max="30">
@@ -499,6 +567,67 @@
         let currentPage = 1;
         let totalPages = 1;
         let perPage = 50;
+
+        function toggleTimestampFields() {
+            const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+            const timestampSection = document.getElementById('timestampSection');
+            
+            if (youtubeUrl) {
+                timestampSection.classList.add('show');
+            } else {
+                timestampSection.classList.remove('show');
+                // Clear timestamp fields when URL is removed
+                document.getElementById('youtubeStart').value = '';
+                document.getElementById('youtubeEnd').value = '';
+                updateSectionPreview();
+            }
+        }
+
+        function updateSectionPreview() {
+            const start = document.getElementById('youtubeStart').value.trim();
+            const end = document.getElementById('youtubeEnd').value.trim();
+            const preview = document.getElementById('sectionPreview');
+            const previewText = document.getElementById('previewText');
+            
+            if (start && end) {
+                previewText.textContent = `From ${start} to ${end}`;
+                preview.classList.add('show');
+            } else if (start) {
+                previewText.textContent = `From ${start} to end of video`;
+                preview.classList.add('show');
+            } else if (end) {
+                previewText.textContent = `From beginning to ${end}`;
+                preview.classList.add('show');
+            } else {
+                preview.classList.remove('show');
+            }
+        }
+
+        function validateTimeFormat(time) {
+            if (time === '' || time === 'inf') return true;
+            // Match MM:SS or HH:MM:SS or M:SS or H:MM:SS
+            const timeRegex = /^(\d{1,2}:)?\d{1,2}:\d{2}$/;
+            return timeRegex.test(time);
+        }
+
+        function formatTimeString(time) {
+            if (!time || time === 'inf') return time;
+            
+            // Parse and validate the time string
+            const parts = time.split(':');
+            if (parts.length === 2) {
+                // MM:SS format
+                const [min, sec] = parts.map(p => parseInt(p, 10));
+                if (isNaN(min) || isNaN(sec) || sec >= 60) return null;
+                return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            } else if (parts.length === 3) {
+                // HH:MM:SS format
+                const [hr, min, sec] = parts.map(p => parseInt(p, 10));
+                if (isNaN(hr) || isNaN(min) || isNaN(sec) || min >= 60 || sec >= 60) return null;
+                return `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            }
+            return null;
+        }
 
         async function loadFolders(path = '') {
             try {
@@ -687,12 +816,51 @@
                 return;
             }
             
-            const youtubeUrl = document.getElementById('youtubeUrl').value;
+            const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+            let youtubeStart = document.getElementById('youtubeStart').value.trim();
+            let youtubeEnd = document.getElementById('youtubeEnd').value.trim();
             const duration = parseInt(document.getElementById('duration').value);
             const orientation = document.getElementById('orientation').value;
             const fadeDuration = parseFloat(document.getElementById('fadeDuration').value);
             const musicVolume = parseFloat(document.getElementById('musicVolume').value);
             const threads = parseInt(document.getElementById('threads').value);
+            
+            // Validate and format timestamp inputs
+            if (youtubeUrl && youtubeStart) {
+                if (!validateTimeFormat(youtubeStart)) {
+                    showStatus('Invalid start time format. Use MM:SS or HH:MM:SS', 'error');
+                    return;
+                }
+                const formatted = formatTimeString(youtubeStart);
+                if (!formatted) {
+                    showStatus('Invalid start time. Check minutes and seconds are valid.', 'error');
+                    return;
+                }
+                youtubeStart = formatted;
+            }
+            
+            if (youtubeUrl && youtubeEnd && youtubeEnd !== 'inf') {
+                if (!validateTimeFormat(youtubeEnd)) {
+                    showStatus('Invalid end time format. Use MM:SS, HH:MM:SS, or "inf"', 'error');
+                    return;
+                }
+                const formatted = formatTimeString(youtubeEnd);
+                if (!formatted) {
+                    showStatus('Invalid end time. Check minutes and seconds are valid.', 'error');
+                    return;
+                }
+                youtubeEnd = formatted;
+            }
+            
+            // Validate that start time is before end time
+            if (youtubeStart && youtubeEnd && youtubeEnd !== 'inf') {
+                const startSeconds = timeToSeconds(youtubeStart);
+                const endSeconds = timeToSeconds(youtubeEnd);
+                if (startSeconds >= endSeconds) {
+                    showStatus('Start time must be before end time', 'error');
+                    return;
+                }
+            }
             
             document.getElementById('loading').style.display = 'block';
             document.getElementById('status').style.display = 'none';
@@ -708,6 +876,8 @@
                     body: JSON.stringify({
                         files: selectedFiles,
                         youtube_url: youtubeUrl,
+                        youtube_start: youtubeStart,
+                        youtube_end: youtubeEnd,
                         duration: duration,
                         orientation: orientation,
                         fade_duration: fadeDuration,
@@ -731,6 +901,16 @@
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('generateBtn').disabled = false;
             }
+        }
+
+        function timeToSeconds(timeStr) {
+            const parts = timeStr.split(':').map(p => parseInt(p, 10));
+            if (parts.length === 2) {
+                return parts[0] * 60 + parts[1];
+            } else if (parts.length === 3) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return 0;
         }
 
         async function pollJobStatus(jobId) {

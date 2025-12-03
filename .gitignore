@@ -25,3 +25,13 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Media
+*.mp4
+*.jpg
+*.mp3
+overlay.txt
+concaT.txt
+
+# Generate App Automation
+generate-app.sh

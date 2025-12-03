@@ -1,2 +1,3 @@
-# Slideshow-Generator-App
-A web app you can host powered by the slideshow generator bash script.
+# Slideshow Generator App
+A self hosted web app to generate slideshows from your personal picture gallery powered by the bash script [Local Slideshow Generator](https://github.com/john-ee/Local-Slideshow-Generator)
+
