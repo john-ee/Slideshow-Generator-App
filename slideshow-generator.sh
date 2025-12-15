@@ -71,18 +71,81 @@ mkdir -p "$SORTED_DIR" "$TMP_DIR"
 
 cp "$IMG_DIR"/* "$SORTED_DIR"
 
+# Initialize buffers for orientation pairing
+portrait_buffer=""
+landscape_buffer=""
+
 echo "Processing media..."
 for file in $(find "$SORTED_DIR" -type f \( -iname "*.jpg" -o -iname "*.mp4" \) | sort); do
   base_name=$(basename "$file" | sed 's/\.[^.]*$//')
   seg="$TMP_DIR/${base_name}.mp4"
 
   if [[ "$file" == *.jpg ]]; then
+    # Get image dimensions
+    dims=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$file")
+    width=$(echo $dims | cut -d'x' -f1)
+    height=$(echo $dims | cut -d'x' -f2)
+    
+    # Determine if portrait (height > width)
+    is_portrait=$( [ "$height" -gt "$width" ] && echo "1" || echo "0" )
+    
+    # LANDSCAPE MODE: Combine portrait images side-by-side
+    if [[ "$ORIENTATION" == "landscape" && "$is_portrait" == "1" ]]; then
+      if [[ -z "$portrait_buffer" ]]; then
+        portrait_buffer="$file"
+        continue
+      else
+        # Create side-by-side portrait images in landscape frame
+        seg="$TMP_DIR/${base_name}_combined.mp4"
+        ffmpeg -threads $THREADS -y \
+          -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+          -loop 1 -t $DURATION_PER_IMAGE -i "$portrait_buffer" \
+          -loop 1 -t $DURATION_PER_IMAGE -i "$file" \
+          -filter_complex "\
+            [1:v]scale=640:720:force_original_aspect_ratio=decrease,pad=640:720:(ow-iw)/2:(oh-ih)/2:black[left];\
+            [2:v]scale=640:720:force_original_aspect_ratio=decrease,pad=640:720:(ow-iw)/2:(oh-ih)/2:black[right];\
+            [left][right]hstack=inputs=2[v]" \
+          -map "[v]" -map 0:a -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
+        
+        echo "file '$seg'" >> "$TMP_LIST"
+        portrait_buffer=""
+        continue
+      fi
+    fi
+    
+    # PORTRAIT MODE: Stack landscape images vertically
+    if [[ "$ORIENTATION" == "portrait" && "$is_portrait" == "0" ]]; then
+      if [[ -z "$landscape_buffer" ]]; then
+        landscape_buffer="$file"
+        continue
+      else
+        # Create vertically stacked landscape images in portrait frame
+        seg="$TMP_DIR/${base_name}_combined.mp4"
+        ffmpeg -threads $THREADS -y \
+          -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+          -loop 1 -t $DURATION_PER_IMAGE -i "$landscape_buffer" \
+          -loop 1 -t $DURATION_PER_IMAGE -i "$file" \
+          -filter_complex "\
+            [1:v]scale=720:640:force_original_aspect_ratio=decrease,pad=720:640:(ow-iw)/2:(oh-ih)/2:black[top];\
+            [2:v]scale=720:640:force_original_aspect_ratio=decrease,pad=720:640:(ow-iw)/2:(oh-ih)/2:black[bottom];\
+            [top][bottom]vstack=inputs=2[v]" \
+          -map "[v]" -map 0:a -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
+        
+        echo "file '$seg'" >> "$TMP_LIST"
+        landscape_buffer=""
+        continue
+      fi
+    fi
+    
+    # Process normally (matching orientation or square mode)
     ffmpeg -threads $THREADS -y \
       -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
       -loop 1 -t $DURATION_PER_IMAGE -i "$file" \
       -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
       -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
+      
   else
+    # Video processing (unchanged - always individual)
     ffmpeg -threads $THREADS -y -i "$file" \
       -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
       -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -ar 44100 "$seg" || exit 1
@@ -90,6 +153,29 @@ for file in $(find "$SORTED_DIR" -type f \( -iname "*.jpg" -o -iname "*.mp4" \) 
 
   echo "file '$seg'" >> "$TMP_LIST"
 done
+
+# Handle leftover buffered images (odd numbers)
+if [[ -n "$portrait_buffer" ]]; then
+  base_name=$(basename "$portrait_buffer" | sed 's/\.[^.]*$//')
+  seg="$TMP_DIR/${base_name}.mp4"
+  ffmpeg -threads $THREADS -y \
+    -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+    -loop 1 -t $DURATION_PER_IMAGE -i "$portrait_buffer" \
+    -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
+    -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
+  echo "file '$seg'" >> "$TMP_LIST"
+fi
+
+if [[ -n "$landscape_buffer" ]]; then
+  base_name=$(basename "$landscape_buffer" | sed 's/\.[^.]*$//')
+  seg="$TMP_DIR/${base_name}.mp4"
+  ffmpeg -threads $THREADS -y \
+    -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+    -loop 1 -t $DURATION_PER_IMAGE -i "$landscape_buffer" \
+    -vf "scale=$RESOLUTION:force_original_aspect_ratio=decrease,pad=$RESOLUTION:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
+    -r 30 -c:v libx264 -pix_fmt yuv420p -color_range tv -sar 1:1 -c:a aac -shortest "$seg" || exit 1
+  echo "file '$seg'" >> "$TMP_LIST"
+fi
 
 if [[ ! -s "$TMP_LIST" ]]; then
  echo "❌ No media files found"
