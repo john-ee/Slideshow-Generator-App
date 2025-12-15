@@ -37,7 +37,7 @@ else
   RESOLUTION="1280:720"
 fi
 
-for cmd in ffmpeg ffprobe bc; do
+for cmd in ffmpeg ffprobe bc identify; do
  command -v $cmd >/dev/null 2>&1 || { echo "❌ $cmd is not installed"; exit 1; }
 done
 if [[ -n "$YOUTUBE_URL" ]]; then
@@ -81,13 +81,33 @@ for file in $(find "$SORTED_DIR" -type f \( -iname "*.jpg" -o -iname "*.mp4" \) 
   seg="$TMP_DIR/${base_name}.mp4"
 
   if [[ "$file" == *.jpg ]]; then
-    # Get image dimensions
-    dims=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$file")
-    width=$(echo $dims | cut -d'x' -f1)
-    height=$(echo $dims | cut -d'x' -f2)
+    # Use ImageMagick identify to get DISPLAYED dimensions (respects EXIF orientation)
+    # This gives us the dimensions as the image is actually displayed
+    if command -v identify >/dev/null 2>&1; then
+      dims=$(identify -format "%w %h" "$file" 2>/dev/null)
+      width=$(echo $dims | cut -d' ' -f1)
+      height=$(echo $dims | cut -d' ' -f2)
+      rotation=$(identify -format "%[EXIF:Orientation]" "$file")
+      echo "Rotation is : $rotation"
+      if [[ "$rotation" =~ ^(5|6|7|8)$  ]]; then
+        height=$(echo $dims | cut -d' ' -f1)
+        width=$(echo $dims | cut -d' ' -f2)
+      fi
+    else
+      # Fallback to ffprobe if identify not available
+      width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$file" | tr -d '[:space:]')
+      height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$file" | tr -d '[:space:]')
+      echo "⚠️  Warning: ImageMagick not found. Install it for better EXIF orientation handling."
+    fi
     
-    # Determine if portrait (height > width)
-    is_portrait=$( [ "$height" -gt "$width" ] && echo "1" || echo "0" )
+    echo "Processing: $(basename "$file") - ${width}x${height}"
+    
+    # Simple check: height > width = portrait
+    if [ "$height" -gt "$width" ]; then
+      is_portrait=1
+    else
+      is_portrait=0
+    fi
     
     # LANDSCAPE MODE: Combine portrait images side-by-side
     if [[ "$ORIENTATION" == "landscape" && "$is_portrait" == "1" ]]; then

@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     zlib1g-dev \
     jq \
+    imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -O /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp && \
